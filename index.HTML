@@ -23,8 +23,7 @@ body {
 
 .balde {
   padding: 15px;
-  border-radius: 10px;
-  border: none;
+  border-radius: 12px;
   cursor: pointer;
   color: white;
   background-size: cover;
@@ -37,7 +36,7 @@ body {
   position: absolute;
   inset: 0;
   background: rgba(0,0,0,0.45);
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .balde span {
@@ -52,9 +51,9 @@ body {
 .panel {
   background: #1b4332;
   padding: 20px;
-  max-width: 600px;
+  max-width: 650px;
   margin: 20px auto;
-  border-radius: 12px;
+  border-radius: 15px;
   background-size: cover;
   background-position: center;
 }
@@ -67,14 +66,12 @@ label {
   text-align: left;
 }
 
-input, textarea {
+input, select, textarea {
   width: 100%;
   padding: 6px;
   border-radius: 5px;
   border: none;
 }
-
-textarea { resize: vertical; }
 
 button {
   margin-top: 10px;
@@ -105,9 +102,8 @@ th, td {
   margin-top: 12px;
   padding: 10px;
   border-radius: 8px;
-  background: rgba(0,0,0,0.25);
+  background: rgba(0,0,0,0.3);
   text-align: left;
-  font-size: 14px;
 }
 </style>
 </head>
@@ -120,10 +116,20 @@ th, td {
 
 <div id="panel" class="panel oculto">
   <h2 id="tituloBalde"></h2>
+
   <div id="mensajeEstado"></div>
 
   <label>Genética</label>
-  <input type="text" id="genetica">
+  <input id="genetica">
+
+  <label>Etapa de la planta</label>
+  <select id="etapa">
+    <option value="">Sin definir</option>
+    <option>Germinación</option>
+    <option>Vegetativo</option>
+    <option>Floración</option>
+    <option>Lavado</option>
+  </select>
 
   <label>📸 Foto de la planta</label>
   <input type="file" id="fotoBalde" accept="image/*" capture="environment">
@@ -147,16 +153,18 @@ th, td {
     <label>Bloom</label>
     <input type="number" step="0.1" id="bloom">
 
+    <label>📝 Nota semanal</label>
+    <textarea id="nota"></textarea>
+
+    <label>📷 Foto semanal</label>
+    <input type="file" id="fotoSemana" accept="image/*" capture="environment">
+
     <button>💾 Guardar registro semanal</button>
   </form>
 
-  <label>📝 Observaciones finales</label>
-  <textarea id="observaciones" rows="4"></textarea>
-
-  <button id="descargarResumen">📄 Descargar resumen final</button>
-  <button id="borrarHistorial" class="borrar">🗑️ Cerrar ciclo</button>
-
   <div id="historial"></div>
+
+  <button class="borrar" id="borrarHistorial">🗑️ Cerrar ciclo</button>
 </div>
 
 <script>
@@ -164,8 +172,11 @@ const baldesDiv = document.getElementById("baldes");
 const panel = document.getElementById("panel");
 const tituloBalde = document.getElementById("tituloBalde");
 const mensajeEstado = document.getElementById("mensajeEstado");
+
 const genetica = document.getElementById("genetica");
+const etapa = document.getElementById("etapa");
 const fotoBalde = document.getElementById("fotoBalde");
+
 const registroForm = document.getElementById("registroForm");
 const semana = document.getElementById("semana");
 const ph = document.getElementById("ph");
@@ -173,8 +184,9 @@ const ec = document.getElementById("ec");
 const grow = document.getElementById("grow");
 const micro = document.getElementById("micro");
 const bloom = document.getElementById("bloom");
+const nota = document.getElementById("nota");
+const fotoSemana = document.getElementById("fotoSemana");
 const historial = document.getElementById("historial");
-const observaciones = document.getElementById("observaciones");
 
 let baldeActual = null;
 
@@ -187,33 +199,25 @@ for (let i = 1; i <= 9; i++) {
   actualizarBalde(i);
 }
 
-function iconoEstado(e) {
-  return e === "ok" ? "🟢 OK" : e === "at" ? "🟡 ATENCIÓN" : "🔴 ALERTA";
-}
-
 function evaluarEstado(ph, ec) {
   let estado = "ok";
   let mensajes = [];
 
-  if (ph < 5.5) {
+  if (ph < 5.5 || ph > 6.5) {
     estado = "mal";
-    mensajes.push("⚠️ pH muy bajo. Subir pH lentamente.");
-  } else if (ph > 6.5) {
-    estado = "mal";
-    mensajes.push("⚠️ pH muy alto. Bajar pH.");
-  } else if (ph < 5.7 || ph > 6.3) {
+    mensajes.push("pH fuera de rango crítico.");
+  } else if (ph < 5.8 || ph > 6.2) {
     estado = "at";
-    mensajes.push("🟡 pH fuera del rango óptimo (5.8–6.2).");
+    mensajes.push("pH no óptimo.");
   }
 
-  if (ec < 1) mensajes.push("🟡 EC baja. Falta de nutrientes.");
+  if (ec < 1) mensajes.push("EC baja, agregar nutrientes.");
   if (ec > 2.5) {
     estado = "mal";
-    mensajes.push("🔴 EC alta. Diluir solución.");
+    mensajes.push("EC muy alta, diluir solución.");
   }
 
-  if (!mensajes.length)
-    mensajes.push("🟢 Parámetros óptimos.");
+  if (!mensajes.length) mensajes.push("Parámetros óptimos.");
 
   return { estado, mensajes };
 }
@@ -221,21 +225,23 @@ function evaluarEstado(ph, ec) {
 function actualizarBalde(n) {
   const g = localStorage.getItem(`balde${n}_genetica`) || "Sin genética";
   const e = localStorage.getItem(`balde${n}_estado`) || "ok";
-  const b = document.getElementById(`balde${n}`);
+  const foto = localStorage.getItem(`balde${n}_foto`);
 
+  const b = document.getElementById(`balde${n}`);
   b.className = `balde estado-${e}`;
   b.innerHTML = `<span>🪣 Balde ${n}<br><small>${g}</small></span>`;
-  aplicarFotoBalde(n);
+  b.style.backgroundImage = foto ? `url(${foto})` : "";
 }
 
 function abrirBalde(n) {
   baldeActual = n;
   panel.classList.remove("oculto");
+
   genetica.value = localStorage.getItem(`balde${n}_genetica`) || "";
-  observaciones.value = localStorage.getItem(`balde${n}_obs`) || "";
+  etapa.value = localStorage.getItem(`balde${n}_etapa`) || "";
+
   tituloBalde.innerText = `Balde ${n}`;
   cargarHistorial();
-  aplicarFotoBalde(n);
 }
 
 genetica.onchange = () => {
@@ -243,47 +249,50 @@ genetica.onchange = () => {
   actualizarBalde(baldeActual);
 };
 
+etapa.onchange = () => {
+  localStorage.setItem(`balde${baldeActual}_etapa`, etapa.value);
+};
+
 fotoBalde.onchange = e => {
-  const file = e.target.files[0];
-  if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
     localStorage.setItem(`balde${baldeActual}_foto`, reader.result);
-    aplicarFotoBalde(baldeActual);
+    actualizarBalde(baldeActual);
   };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(e.target.files[0]);
 };
-
-function aplicarFotoBalde(n) {
-  const foto = localStorage.getItem(`balde${n}_foto`);
-  if (foto) {
-    document.getElementById(`balde${n}`).style.backgroundImage = `url(${foto})`;
-    panel.style.backgroundImage = `url(${foto})`;
-  } else {
-    document.getElementById(`balde${n}`).style.backgroundImage = "";
-    panel.style.backgroundImage = "";
-  }
-}
 
 registroForm.onsubmit = e => {
   e.preventDefault();
+
   const eval = evaluarEstado(ph.value, ec.value);
 
-  localStorage.setItem(`balde${baldeActual}_${semana.value}`, JSON.stringify({
+  const data = {
     semana: semana.value,
     ph: ph.value,
     ec: ec.value,
     grow: grow.value,
     micro: micro.value,
     bloom: bloom.value,
+    nota: nota.value,
     estado: eval.estado,
     mensajes: eval.mensajes
-  }));
+  };
 
+  if (fotoSemana.files[0]) {
+    const r = new FileReader();
+    r.onload = () => {
+      localStorage.setItem(`balde${baldeActual}_foto_${semana.value}`, r.result);
+    };
+    r.readAsDataURL(fotoSemana.files[0]);
+  }
+
+  localStorage.setItem(`balde${baldeActual}_${semana.value}`, JSON.stringify(data));
   localStorage.setItem(`balde${baldeActual}_estado`, eval.estado);
+
+  registroForm.reset();
   cargarHistorial();
   actualizarBalde(baldeActual);
-  registroForm.reset();
 };
 
 function cargarHistorial() {
@@ -291,24 +300,25 @@ function cargarHistorial() {
     .filter(k => k.startsWith(`balde${baldeActual}_`) && k.includes("W"))
     .sort();
 
-  let html = "<table><tr><th>Semana</th><th>pH</th><th>EC</th><th>Estado</th></tr>";
+  let html = "<table><tr><th>Semana</th><th>pH</th><th>EC</th><th>Nota</th><th>Estado</th></tr>";
   let ultimo = null;
 
   keys.forEach(k => {
     const d = JSON.parse(localStorage[k]);
     ultimo = d;
-    html += `<tr><td>${d.semana}</td><td>${d.ph}</td><td>${d.ec}</td><td>${iconoEstado(d.estado)}</td></tr>`;
+    html += `<tr><td>${d.semana}</td><td>${d.ph}</td><td>${d.ec}</td><td>${d.nota||""}</td><td>${d.estado}</td></tr>`;
   });
 
   historial.innerHTML = html + "</table>";
 
   if (ultimo) {
-    mensajeEstado.innerHTML = `<strong>${iconoEstado(ultimo.estado)}</strong><ul>${ultimo.mensajes.map(m=>`<li>${m}</li>`).join("")}</ul>`;
+    mensajeEstado.innerHTML =
+      `<strong>Estado actual:</strong><ul>${ultimo.mensajes.map(m=>`<li>${m}</li>`).join("")}</ul>`;
   }
 }
 
 document.getElementById("borrarHistorial").onclick = () => {
-  if (!confirm("¿Cerrar ciclo?")) return;
+  if (!confirm("¿Cerrar ciclo completo?")) return;
   Object.keys(localStorage)
     .filter(k => k.startsWith(`balde${baldeActual}_`))
     .forEach(k => localStorage.removeItem(k));
@@ -320,5 +330,3 @@ document.getElementById("borrarHistorial").onclick = () => {
 
 </body>
 </html>
-
-
