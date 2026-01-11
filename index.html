@@ -1,114 +1,116 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Simulador Indoor Hidroponía</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body {
   font-family: Arial, sans-serif;
   background: #0f1f17;
   color: #eaffea;
-  text-align: center;
-  padding: 20px;
+  margin: 0;
+  padding: 15px;
 }
+
+h1 { text-align:center; }
 
 .baldes {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-  max-width: 480px;
+  gap: 12px;
+  max-width: 500px;
   margin: auto;
 }
 
 .balde {
   padding: 15px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: none;
-  cursor: pointer;
   color: white;
+  cursor: pointer;
   background-size: cover;
   background-position: center;
   position: relative;
 }
 
 .balde::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  border-radius: 10px;
+  content:"";
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.45);
+  border-radius:12px;
 }
 
 .balde span {
   position: relative;
-  z-index: 2;
+  z-index:2;
 }
 
-.estado-ok { background-color: #2d6a4f; }
-.estado-at { background-color: #b08900; }
-.estado-mal { background-color: #9b2226; }
+.estado-ok { background:#2d6a4f; }
+.estado-at { background:#b08900; }
+.estado-mal { background:#9b2226; }
 
 .panel {
-  background: #1b4332;
-  padding: 20px;
-  max-width: 600px;
+  max-width: 650px;
   margin: 20px auto;
-  border-radius: 12px;
+  background:#1b4332;
+  border-radius:14px;
+  padding:15px;
   background-size: cover;
   background-position: center;
 }
 
-.oculto { display: none; }
+.oculto { display:none; }
 
-label {
-  display: block;
-  margin-top: 10px;
-  text-align: left;
+.card {
+  background:rgba(0,0,0,.25);
+  padding:12px;
+  border-radius:10px;
+  margin-top:12px;
 }
 
-input, textarea {
-  width: 100%;
-  padding: 6px;
-  border-radius: 5px;
-  border: none;
-}
+label { display:block; margin-top:8px; text-align:left; }
 
-textarea { resize: vertical; }
+input, select, textarea {
+  width:100%;
+  padding:6px;
+  border-radius:6px;
+  border:none;
+}
 
 button {
-  margin-top: 10px;
-  padding: 10px;
-  width: 100%;
-  background: #52b788;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  cursor: pointer;
+  margin-top:10px;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#52b788;
+  cursor:pointer;
 }
 
-button.borrar { background: #9b2226; }
+button.borrar { background:#9b2226; }
 
 table {
-  width: 100%;
-  margin-top: 15px;
-  border-collapse: collapse;
-  font-size: 12px;
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
 }
 
 th, td {
-  border: 1px solid #40916c;
-  padding: 4px;
+  border:1px solid #40916c;
+  padding:4px;
 }
 
-#mensajeEstado {
-  margin-top: 12px;
-  padding: 10px;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.25);
-  text-align: left;
-  font-size: 14px;
+.galeria {
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+}
+
+.galeria img {
+  height:80px;
+  border-radius:8px;
 }
 </style>
 </head>
@@ -121,43 +123,51 @@ th, td {
 
 <div id="panel" class="panel oculto">
   <h2 id="tituloBalde"></h2>
-  <div id="mensajeEstado"></div>
 
-  <label>Genética</label>
-  <input type="text" id="genetica">
+  <div class="card" id="mensajeEstado"></div>
 
-  <label>📸 Foto de la planta</label>
-  <input type="file" id="fotoBalde" accept="image/*" capture="environment">
+  <div class="card">
+    <label>Genética</label>
+    <input id="genetica">
 
-  <form id="registroForm">
-    <label>Semana</label>
-    <input type="week" id="semana" required>
+    <label>Etapa de la planta</label>
+    <select id="etapa">
+      <option>Germinación</option>
+      <option>Vegetativo</option>
+      <option>Floración</option>
+      <option>Lavado</option>
+    </select>
 
-    <label>pH</label>
-    <input type="number" step="0.1" id="ph">
+    <label>📸 Foto semanal</label>
+    <input type="file" id="fotoSemana" accept="image/*" capture="environment">
+  </div>
 
-    <label>EC</label>
-    <input type="number" step="0.1" id="ec">
+  <div class="card">
+    <form id="registroForm">
+      <label>Semana</label>
+      <input type="week" id="semana" required>
 
-    <label>Grow</label>
-    <input type="number" step="0.1" id="grow">
+      <label>pH</label>
+      <input type="number" step="0.1" id="ph">
 
-    <label>Micro</label>
-    <input type="number" step="0.1" id="micro">
+      <label>EC</label>
+      <input type="number" step="0.1" id="ec">
 
-    <label>Bloom</label>
-    <input type="number" step="0.1" id="bloom">
+      <label>Notas semanales</label>
+      <textarea id="nota"></textarea>
 
-    <button>💾 Guardar registro semanal</button>
-  </form>
+      <button>💾 Guardar semana</button>
+    </form>
+  </div>
 
-  <label>📝 Observaciones finales</label>
-  <textarea id="observaciones" rows="4"></textarea>
+  <div class="card">
+    <h3>📸 Galería semanal</h3>
+    <div class="galeria" id="galeria"></div>
+  </div>
 
-  <button id="descargarResumen">📄 Descargar resumen final</button>
-  <button id="borrarHistorial" class="borrar">🗑️ Cerrar ciclo</button>
+  <div class="card" id="historial"></div>
 
-  <div id="historial"></div>
+  <button class="borrar" id="borrarHistorial">🗑️ Cerrar ciclo</button>
 </div>
 
 <script>
@@ -166,155 +176,111 @@ const panel = document.getElementById("panel");
 const tituloBalde = document.getElementById("tituloBalde");
 const mensajeEstado = document.getElementById("mensajeEstado");
 const genetica = document.getElementById("genetica");
-const fotoBalde = document.getElementById("fotoBalde");
-const registroForm = document.getElementById("registroForm");
+const etapa = document.getElementById("etapa");
 const semana = document.getElementById("semana");
 const ph = document.getElementById("ph");
 const ec = document.getElementById("ec");
-const grow = document.getElementById("grow");
-const micro = document.getElementById("micro");
-const bloom = document.getElementById("bloom");
+const nota = document.getElementById("nota");
+const fotoSemana = document.getElementById("fotoSemana");
+const galeria = document.getElementById("galeria");
 const historial = document.getElementById("historial");
-const observaciones = document.getElementById("observaciones");
 
 let baldeActual = null;
 
-/* ===== BALDES ===== */
-for (let i = 1; i <= 9; i++) {
-  const b = document.createElement("button");
-  b.id = `balde${i}`;
-  b.onclick = () => abrirBalde(i);
+/* ==== BALDES ==== */
+for(let i=1;i<=9;i++){
+  const b=document.createElement("button");
+  b.id=`balde${i}`;
+  b.onclick=()=>abrirBalde(i);
   baldesDiv.appendChild(b);
   actualizarBalde(i);
 }
 
-function iconoEstado(e) {
-  return e === "ok" ? "🟢 OK" : e === "at" ? "🟡 ATENCIÓN" : "🔴 ALERTA";
+function iconoEstado(e){
+  return e==="ok"?"🟢 OK":e==="at"?"🟡 ATENCIÓN":"🔴 ALERTA";
 }
 
-function evaluarEstado(ph, ec) {
-  let estado = "ok";
-  let mensajes = [];
-
-  if (ph < 5.5) {
-    estado = "mal";
-    mensajes.push("⚠️ pH muy bajo. Subir pH lentamente.");
-  } else if (ph > 6.5) {
-    estado = "mal";
-    mensajes.push("⚠️ pH muy alto. Bajar pH.");
-  } else if (ph < 5.7 || ph > 6.3) {
-    estado = "at";
-    mensajes.push("🟡 pH fuera del rango óptimo (5.8–6.2).");
-  }
-
-  if (ec < 1) mensajes.push("🟡 EC baja. Falta de nutrientes.");
-  if (ec > 2.5) {
-    estado = "mal";
-    mensajes.push("🔴 EC alta. Diluir solución.");
-  }
-
-  if (!mensajes.length)
-    mensajes.push("🟢 Parámetros óptimos.");
-
-  return { estado, mensajes };
+function evaluarEstado(ph,ec){
+  let estado="ok",msgs=[];
+  if(ph<5.5||ph>6.5){estado="mal";msgs.push("pH crítico");}
+  if(ec<1){estado="at";msgs.push("EC baja");}
+  if(ec>2.5){estado="mal";msgs.push("EC alta");}
+  if(!msgs.length)msgs.push("Parámetros óptimos");
+  return{estado,msgs};
 }
 
-function actualizarBalde(n) {
-  const g = localStorage.getItem(`balde${n}_genetica`) || "Sin genética";
-  const e = localStorage.getItem(`balde${n}_estado`) || "ok";
-  const b = document.getElementById(`balde${n}`);
-
-  b.className = `balde estado-${e}`;
-  b.innerHTML = `<span>🪣 Balde ${n}<br><small>${g}</small></span>`;
-  aplicarFotoBalde(n);
+function actualizarBalde(n){
+  const g=localStorage.getItem(`balde${n}_gen`)||"Sin genética";
+  const e=localStorage.getItem(`balde${n}_estado`)||"ok";
+  const b=document.getElementById(`balde${n}`);
+  b.className=`balde estado-${e}`;
+  b.innerHTML=`<span>🪣 ${n}<br><small>${g}</small></span>`;
 }
 
-function abrirBalde(n) {
-  baldeActual = n;
+function abrirBalde(n){
+  baldeActual=n;
   panel.classList.remove("oculto");
-  genetica.value = localStorage.getItem(`balde${n}_genetica`) || "";
-  observaciones.value = localStorage.getItem(`balde${n}_obs`) || "";
-  tituloBalde.innerText = `Balde ${n}`;
+  genetica.value=localStorage.getItem(`balde${n}_gen`)||"";
+  etapa.value=localStorage.getItem(`balde${n}_etapa`)||"Vegetativo";
+  tituloBalde.innerText=`Balde ${n}`;
   cargarHistorial();
-  aplicarFotoBalde(n);
+  cargarGaleria();
 }
 
-genetica.onchange = () => {
-  localStorage.setItem(`balde${baldeActual}_genetica`, genetica.value);
-  actualizarBalde(baldeActual);
-};
+genetica.onchange=()=>localStorage.setItem(`balde${baldeActual}_gen`,genetica.value);
+etapa.onchange=()=>localStorage.setItem(`balde${baldeActual}_etapa`,etapa.value);
 
-fotoBalde.onchange = e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    localStorage.setItem(`balde${baldeActual}_foto`, reader.result);
-    aplicarFotoBalde(baldeActual);
-  };
-  reader.readAsDataURL(file);
-};
-
-function aplicarFotoBalde(n) {
-  const foto = localStorage.getItem(`balde${n}_foto`);
-  if (foto) {
-    document.getElementById(`balde${n}`).style.backgroundImage = `url(${foto})`;
-    panel.style.backgroundImage = `url(${foto})`;
-  } else {
-    document.getElementById(`balde${n}`).style.backgroundImage = "";
-    panel.style.backgroundImage = "";
-  }
-}
-
-registroForm.onsubmit = e => {
+registroForm.onsubmit=e=>{
   e.preventDefault();
-  const eval = evaluarEstado(ph.value, ec.value);
-
-  localStorage.setItem(`balde${baldeActual}_${semana.value}`, JSON.stringify({
-    semana: semana.value,
-    ph: ph.value,
-    ec: ec.value,
-    grow: grow.value,
-    micro: micro.value,
-    bloom: bloom.value,
-    estado: eval.estado,
-    mensajes: eval.mensajes
+  const ev=evaluarEstado(ph.value,ec.value);
+  localStorage.setItem(`balde${baldeActual}_${semana.value}`,JSON.stringify({
+    semana:semana.value,ph:ph.value,ec:ec.value,
+    nota:nota.value,estado:ev.estado,msgs:ev.msgs
   }));
-
-  localStorage.setItem(`balde${baldeActual}_estado`, eval.estado);
-  cargarHistorial();
-  actualizarBalde(baldeActual);
+  localStorage.setItem(`balde${baldeActual}_estado`,ev.estado);
+  if(fotoSemana.files[0]){
+    const r=new FileReader();
+    r.onload=()=>localStorage.setItem(`balde${baldeActual}_foto_${semana.value}`,r.result);
+    r.readAsDataURL(fotoSemana.files[0]);
+  }
   registroForm.reset();
+  cargarHistorial();
+  cargarGaleria();
+  actualizarBalde(baldeActual);
 };
 
-function cargarHistorial() {
-  const keys = Object.keys(localStorage)
-    .filter(k => k.startsWith(`balde${baldeActual}_`) && k.includes("W"))
-    .sort();
-
-  let html = "<table><tr><th>Semana</th><th>pH</th><th>EC</th><th>Estado</th></tr>";
-  let ultimo = null;
-
-  keys.forEach(k => {
-    const d = JSON.parse(localStorage[k]);
-    ultimo = d;
-    html += `<tr><td>${d.semana}</td><td>${d.ph}</td><td>${d.ec}</td><td>${iconoEstado(d.estado)}</td></tr>`;
+function cargarHistorial(){
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith(`balde${baldeActual}_W`)).sort();
+  let html="<table><tr><th>Semana</th><th>pH</th><th>EC</th><th>Estado</th></tr>";
+  let alertas=0;
+  keys.forEach(k=>{
+    const d=JSON.parse(localStorage[k]);
+    if(d.estado!=="ok")alertas++;
+    html+=`<tr><td>${d.semana}</td><td>${d.ph}</td><td>${d.ec}</td><td>${iconoEstado(d.estado)}</td></tr>`;
   });
-
-  historial.innerHTML = html + "</table>";
-
-  if (ultimo) {
-    mensajeEstado.innerHTML = `<strong>${iconoEstado(ultimo.estado)}</strong><ul>${ultimo.mensajes.map(m=>`<li>${m}</li>`).join("")}</ul>`;
-  }
+  historial.innerHTML=html+"</table>";
+  mensajeEstado.innerHTML=alertas>=2
+    ?"⚠️ Varias semanas con problemas. Revisar manejo."
+    :"Estado controlado.";
 }
 
-document.getElementById("borrarHistorial").onclick = () => {
-  if (!confirm("¿Cerrar ciclo?")) return;
+function cargarGaleria(){
+  galeria.innerHTML="";
   Object.keys(localStorage)
-    .filter(k => k.startsWith(`balde${baldeActual}_`))
-    .forEach(k => localStorage.removeItem(k));
-  historial.innerHTML = "";
-  mensajeEstado.innerHTML = "";
+    .filter(k=>k.startsWith(`balde${baldeActual}_foto_`))
+    .forEach(k=>{
+      const img=document.createElement("img");
+      img.src=localStorage[k];
+      galeria.appendChild(img);
+    });
+}
+
+document.getElementById("borrarHistorial").onclick=()=>{
+  if(!confirm("Cerrar ciclo?"))return;
+  Object.keys(localStorage)
+    .filter(k=>k.startsWith(`balde${baldeActual}_`))
+    .forEach(k=>localStorage.removeItem(k));
+  panel.classList.add("oculto");
   actualizarBalde(baldeActual);
 };
 </script>
