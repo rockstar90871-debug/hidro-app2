@@ -132,7 +132,7 @@ th, td {
   </select>
 
   <label>📸 Foto de la planta</label>
-  <input type="file" id="fotoBalde" accept="image/*" capture="environment">
+  <input type="file" id="fotoBalde" accept="image/*">
 
   <form id="registroForm">
     <label>Semana</label>
@@ -157,7 +157,7 @@ th, td {
     <textarea id="nota"></textarea>
 
     <label>📷 Foto semanal</label>
-    <input type="file" id="fotoSemana" accept="image/*" capture="environment">
+    <input type="file" id="fotoSemana" accept="image/*">
 
     <button>💾 Guardar registro semanal</button>
   </form>
@@ -168,8 +168,96 @@ th, td {
 </div>
 
 <script>
-/* 👉 TODO EL JS QUEDA EXACTAMENTE IGUAL */
-</script>
+const baldesDiv = document.getElementById("baldes");
+const panel = document.getElementById("panel");
+const tituloBalde = document.getElementById("tituloBalde");
+const mensajeEstado = document.getElementById("mensajeEstado");
 
-</body>
-</html>
+const genetica = document.getElementById("genetica");
+const etapa = document.getElementById("etapa");
+const fotoBalde = document.getElementById("fotoBalde");
+
+const registroForm = document.getElementById("registroForm");
+const semana = document.getElementById("semana");
+const ph = document.getElementById("ph");
+const ec = document.getElementById("ec");
+const grow = document.getElementById("grow");
+const micro = document.getElementById("micro");
+const bloom = document.getElementById("bloom");
+const nota = document.getElementById("nota");
+const fotoSemana = document.getElementById("fotoSemana");
+const historial = document.getElementById("historial");
+
+let baldeActual = null;
+
+/* ===== BALDES ===== */
+for (let i = 1; i <= 9; i++) {
+  const b = document.createElement("div");
+  b.id = `balde${i}`;
+  b.className = "balde";
+  b.onclick = () => abrirBalde(i);
+  baldesDiv.appendChild(b);
+  actualizarBalde(i);
+}
+
+function evaluarEstado(ph, ec) {
+  let estado = "ok";
+  let mensajes = [];
+
+  if (ph < 5.5 || ph > 6.5) {
+    estado = "mal";
+    mensajes.push("pH fuera de rango crítico.");
+  } else if (ph < 5.8 || ph > 6.2) {
+    estado = "at";
+    mensajes.push("pH no óptimo.");
+  }
+
+  if (ec < 1) mensajes.push("EC baja, agregar nutrientes.");
+  if (ec > 2.5) {
+    estado = "mal";
+    mensajes.push("EC muy alta, diluir solución.");
+  }
+
+  if (!mensajes.length) mensajes.push("Parámetros óptimos.");
+
+  return { estado, mensajes };
+}
+
+function actualizarBalde(n) {
+  const g = localStorage.getItem(`balde${n}_genetica`) || "Sin genética";
+  const e = localStorage.getItem(`balde${n}_estado`) || "ok";
+  const foto = localStorage.getItem(`balde${n}_foto`);
+
+  const b = document.getElementById(`balde${n}`);
+  b.className = `balde estado-${e}`;
+  b.innerHTML = `<span>🪣 Balde ${n}<br><small>${g}</small></span>`;
+  b.style.backgroundImage = foto ? `url(${foto})` : "none";
+}
+
+function abrirBalde(n) {
+  baldeActual = n;
+  panel.classList.remove("oculto");
+
+  genetica.value = localStorage.getItem(`balde${n}_genetica`) || "";
+  etapa.value = localStorage.getItem(`balde${n}_etapa`) || "";
+
+  tituloBalde.innerText = `Balde ${n}`;
+  cargarHistorial();
+}
+
+genetica.onchange = () => {
+  localStorage.setItem(`balde${baldeActual}_genetica`, genetica.value);
+  actualizarBalde(baldeActual);
+};
+
+etapa.onchange = () => {
+  localStorage.setItem(`balde${baldeActual}_etapa`, etapa.value);
+};
+
+fotoBalde.onchange = e => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    localStorage.setItem(`balde${baldeActual}_foto`, reader.result);
+    actualizarBalde(baldeActual);
+  };
+  reader.readAsData
