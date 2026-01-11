@@ -1,39 +1,263 @@
-registroForm.onsubmit = e => {
-  e.preventDefault();
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sala de Cultivo Inteligente</title>
 
-  const evaluacion = evaluarEstado(ph.value, ec.value);
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #0f1f17;
+  color: #eaffea;
+  text-align: center;
+  padding: 20px;
+}
 
-  const data = {
-    semana: semana.value,
-    ph: ph.value,
-    ec: ec.value,
-    grow: grow.value,
-    micro: micro.value,
-    bloom: bloom.value,
-    nota: nota.value,
-    estado: evaluacion.estado,
-    mensajes: evaluacion.mensajes
-  };
+.baldes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  max-width: 480px;
+  margin: auto;
+}
 
-  if (fotoSemana.files[0]) {
-    const r = new FileReader();
-    r.onload = () => {
-      localStorage.setItem(`balde${baldeActual}_foto_${semana.value}`, r.result);
-    };
-    r.readAsDataURL(fotoSemana.files[0]);
+.balde {
+  padding: 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: white;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.balde::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  border-radius: 12px;
+}
+
+.balde span {
+  position: relative;
+  z-index: 2;
+}
+
+.estado-ok { background-color: #2d6a4f; }
+.estado-at { background-color: #b08900; }
+.estado-mal { background-color: #9b2226; }
+
+.panel {
+  background: #1b4332;
+  padding: 20px;
+  max-width: 650px;
+  margin: 20px auto;
+  border-radius: 15px;
+  background-size: cover;
+  background-position: center;
+}
+
+.oculto { display: none; }
+
+label {
+  display: block;
+  margin-top: 10px;
+  text-align: left;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 6px;
+  border-radius: 5px;
+  border: none;
+}
+
+button {
+  margin-top: 10px;
+  padding: 10px;
+  width: 100%;
+  background: #52b788;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+button.borrar { background: #9b2226; }
+
+table {
+  width: 100%;
+  margin-top: 15px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th, td {
+  border: 1px solid #40916c;
+  padding: 4px;
+}
+
+#mensajeEstado {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.3);
+  text-align: left;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🌱 Sala de Cultivo Inteligente</h1>
+
+<div class="baldes" id="baldes"></div>
+
+<div id="panel" class="panel oculto">
+  <h2 id="tituloBalde"></h2>
+
+  <div id="mensajeEstado"></div>
+
+  <label>Genética</label>
+  <input id="genetica">
+
+  <label>Etapa de la planta</label>
+  <select id="etapa">
+    <option value="">Sin definir</option>
+    <option>Germinación</option>
+    <option>Vegetativo</option>
+    <option>Floración</option>
+    <option>Lavado</option>
+  </select>
+
+  <label>📸 Foto de la planta</label>
+  <input type="file" id="fotoBalde" accept="image/*">
+
+  <form id="registroForm">
+    <label>Semana</label>
+    <input type="week" id="semana" required>
+
+    <label>pH</label>
+    <input type="number" step="0.1" id="ph">
+
+    <label>EC</label>
+    <input type="number" step="0.1" id="ec">
+
+    <label>Grow</label>
+    <input type="number" step="0.1" id="grow">
+
+    <label>Micro</label>
+    <input type="number" step="0.1" id="micro">
+
+    <label>Bloom</label>
+    <input type="number" step="0.1" id="bloom">
+
+    <label>📝 Nota semanal</label>
+    <textarea id="nota"></textarea>
+
+    <label>📷 Foto semanal</label>
+    <input type="file" id="fotoSemana" accept="image/*">
+
+    <button>💾 Guardar registro semanal</button>
+  </form>
+
+  <div id="historial"></div>
+
+  <button class="borrar" id="borrarHistorial">🗑️ Cerrar ciclo</button>
+</div>
+
+<script>
+const baldesDiv = document.getElementById("baldes");
+const panel = document.getElementById("panel");
+const tituloBalde = document.getElementById("tituloBalde");
+const mensajeEstado = document.getElementById("mensajeEstado");
+
+const genetica = document.getElementById("genetica");
+const etapa = document.getElementById("etapa");
+const fotoBalde = document.getElementById("fotoBalde");
+
+const registroForm = document.getElementById("registroForm");
+const semana = document.getElementById("semana");
+const ph = document.getElementById("ph");
+const ec = document.getElementById("ec");
+const grow = document.getElementById("grow");
+const micro = document.getElementById("micro");
+const bloom = document.getElementById("bloom");
+const nota = document.getElementById("nota");
+const fotoSemana = document.getElementById("fotoSemana");
+const historial = document.getElementById("historial");
+
+let baldeActual = null;
+
+/* ===== BALDES ===== */
+for (let i = 1; i <= 9; i++) {
+  const b = document.createElement("div");
+  b.id = `balde${i}`;
+  b.className = "balde";
+  b.onclick = () => abrirBalde(i);
+  baldesDiv.appendChild(b);
+  actualizarBalde(i);
+}
+
+function evaluarEstado(ph, ec) {
+  let estado = "ok";
+  let mensajes = [];
+
+  if (ph < 5.5 || ph > 6.5) {
+    estado = "mal";
+    mensajes.push("pH fuera de rango crítico.");
+  } else if (ph < 5.8 || ph > 6.2) {
+    estado = "at";
+    mensajes.push("pH no óptimo.");
   }
 
-  localStorage.setItem(
-    `balde${baldeActual}_${semana.value}`,
-    JSON.stringify(data)
-  );
+  if (ec < 1) mensajes.push("EC baja, agregar nutrientes.");
+  if (ec > 2.5) {
+    estado = "mal";
+    mensajes.push("EC muy alta, diluir solución.");
+  }
 
-  localStorage.setItem(
-    `balde${baldeActual}_estado`,
-    evaluacion.estado
-  );
+  if (!mensajes.length) mensajes.push("Parámetros óptimos.");
 
-  registroForm.reset();
+  return { estado, mensajes };
+}
+
+function actualizarBalde(n) {
+  const g = localStorage.getItem(`balde${n}_genetica`) || "Sin genética";
+  const e = localStorage.getItem(`balde${n}_estado`) || "ok";
+  const foto = localStorage.getItem(`balde${n}_foto`);
+
+  const b = document.getElementById(`balde${n}`);
+  b.className = `balde estado-${e}`;
+  b.innerHTML = `<span>🪣 Balde ${n}<br><small>${g}</small></span>`;
+  b.style.backgroundImage = foto ? `url(${foto})` : "none";
+}
+
+function abrirBalde(n) {
+  baldeActual = n;
+  panel.classList.remove("oculto");
+
+  genetica.value = localStorage.getItem(`balde${n}_genetica`) || "";
+  etapa.value = localStorage.getItem(`balde${n}_etapa`) || "";
+
+  tituloBalde.innerText = `Balde ${n}`;
   cargarHistorial();
+}
+
+genetica.onchange = () => {
+  localStorage.setItem(`balde${baldeActual}_genetica`, genetica.value);
   actualizarBalde(baldeActual);
 };
+
+etapa.onchange = () => {
+  localStorage.setItem(`balde${baldeActual}_etapa`, etapa.value);
+};
+
+fotoBalde.onchange = e => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    localStorage.setItem(`balde${baldeActual}_foto`, reader.result);
+    actualizarBalde(baldeActual);
+  };
+  reader.readAsData
