@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <title>Sala de Cultivo Inteligente</title>
 
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1b4332">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -11,6 +16,11 @@ body {
   color: #eaffea;
   text-align: center;
   padding: 20px;
+  margin: 0;
+}
+
+h1 {
+  margin-top: 10px;
 }
 
 .baldes {
@@ -29,6 +39,7 @@ body {
   background-size: cover;
   background-position: center;
   position: relative;
+  min-height: 90px;
 }
 
 .balde::after {
@@ -42,6 +53,7 @@ body {
 .balde span {
   position: relative;
   z-index: 2;
+  font-size: 14px;
 }
 
 .estado-ok { background-color: #2d6a4f; }
@@ -54,8 +66,6 @@ body {
   max-width: 650px;
   margin: 20px auto;
   border-radius: 15px;
-  background-size: cover;
-  background-position: center;
 }
 
 .oculto { display: none; }
@@ -64,17 +74,23 @@ label {
   display: block;
   margin-top: 10px;
   text-align: left;
+  font-size: 13px;
 }
 
 input, select, textarea {
   width: 100%;
-  padding: 6px;
-  border-radius: 5px;
+  padding: 7px;
+  border-radius: 6px;
   border: none;
+  margin-top: 3px;
+}
+
+textarea {
+  resize: vertical;
 }
 
 button {
-  margin-top: 10px;
+  margin-top: 12px;
   padding: 10px;
   width: 100%;
   background: #52b788;
@@ -90,7 +106,7 @@ table {
   width: 100%;
   margin-top: 15px;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 th, td {
@@ -260,4 +276,97 @@ fotoBalde.onchange = e => {
     localStorage.setItem(`balde${baldeActual}_foto`, reader.result);
     actualizarBalde(baldeActual);
   };
-  reader.readAsData
+  reader.readAsDataURL(e.target.files[0]);
+};
+
+registroForm.onsubmit = e => {
+  e.preventDefault();
+
+  const evaluacion = evaluarEstado(ph.value, ec.value);
+
+  const data = {
+    semana: semana.value,
+    ph: ph.value,
+    ec: ec.value,
+    grow: grow.value,
+    micro: micro.value,
+    bloom: bloom.value,
+    nota: nota.value,
+    estado: evaluacion.estado,
+    mensajes: evaluacion.mensajes
+  };
+
+  localStorage.setItem(`balde${baldeActual}_${semana.value}`, JSON.stringify(data));
+  localStorage.setItem(`balde${baldeActual}_estado`, evaluacion.estado);
+
+  registroForm.reset();
+  cargarHistorial();
+  actualizarBalde(baldeActual);
+};
+
+function cargarHistorial() {
+  const keys = Object.keys(localStorage)
+    .filter(k => k.startsWith(`balde${baldeActual}_`) && /\d{4}-W\d{2}/.test(k))
+    .sort();
+
+  let html = `
+  <table>
+    <tr>
+      <th>Semana</th>
+      <th>pH</th>
+      <th>EC</th>
+      <th>Grow</th>
+      <th>Micro</th>
+      <th>Bloom</th>
+      <th>Nota</th>
+      <th>Estado</th>
+    </tr>`;
+
+  let ultimo = null;
+
+  keys.forEach(k => {
+    const d = JSON.parse(localStorage[k]);
+    ultimo = d;
+    html += `
+    <tr>
+      <td>${d.semana}</td>
+      <td>${d.ph}</td>
+      <td>${d.ec}</td>
+      <td>${d.grow}</td>
+      <td>${d.micro}</td>
+      <td>${d.bloom}</td>
+      <td>${d.nota || ""}</td>
+      <td>${d.estado}</td>
+    </tr>`;
+  });
+
+  historial.innerHTML = html + "</table>";
+
+  if (ultimo) {
+    mensajeEstado.innerHTML =
+      `<strong>Estado actual:</strong>
+       <ul>${ultimo.mensajes.map(m => `<li>${m}</li>`).join("")}</ul>`;
+  }
+}
+
+document.getElementById("borrarHistorial").onclick = () => {
+  if (!confirm("¿Cerrar ciclo completo?")) return;
+  Object.keys(localStorage)
+    .filter(k => k.startsWith(`balde${baldeActual}_`))
+    .forEach(k => localStorage.removeItem(k));
+
+  historial.innerHTML = "";
+  mensajeEstado.innerHTML = "";
+  actualizarBalde(baldeActual);
+};
+</script>
+
+<!-- REGISTRO SERVICE WORKER -->
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+</body>
+</html>
