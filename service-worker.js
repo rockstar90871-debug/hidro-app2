@@ -85,3 +85,4 @@ async function networkFirst(request) {
     return caches.match(request);
   }
 }
+
