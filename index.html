@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>Sala de Cultivo Inteligente</title>
 
-<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1b4332">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,9 +18,7 @@ body {
   margin: 0;
 }
 
-h1 {
-  margin-top: 10px;
-}
+h1 { margin-top: 10px; }
 
 .baldes {
   display: grid;
@@ -85,9 +82,7 @@ input, select, textarea {
   margin-top: 3px;
 }
 
-textarea {
-  resize: vertical;
-}
+textarea { resize: vertical; }
 
 button {
   margin-top: 12px;
@@ -114,6 +109,12 @@ th, td {
   padding: 4px;
 }
 
+img.thumb {
+  width: 40px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 #mensajeEstado {
   margin-top: 12px;
   padding: 10px;
@@ -127,20 +128,17 @@ th, td {
 <body>
 
 <h1>🌱 Sala de Cultivo Inteligente</h1>
-
 <div class="baldes" id="baldes"></div>
 
 <div id="panel" class="panel oculto">
   <h2 id="tituloBalde"></h2>
-
   <div id="mensajeEstado"></div>
 
   <label>Genética</label>
   <input id="genetica">
 
-  <label>Etapa de la planta</label>
+  <label>Etapa</label>
   <select id="etapa">
-    <option value="">Sin definir</option>
     <option>Germinación</option>
     <option>Vegetativo</option>
     <option>Floración</option>
@@ -152,7 +150,18 @@ th, td {
 
   <form id="registroForm">
     <label>Semana</label>
-    <input type="week" id="semana" required>
+    <input type="number" id="semana" min="1" max="53" required>
+
+    <label>Mes</label>
+    <select id="mes">
+      <option>Enero</option><option>Febrero</option><option>Marzo</option>
+      <option>Abril</option><option>Mayo</option><option>Junio</option>
+      <option>Julio</option><option>Agosto</option><option>Septiembre</option>
+      <option>Octubre</option><option>Noviembre</option><option>Diciembre</option>
+    </select>
+
+    <label>Año</label>
+    <input type="number" id="anio" value="2026" min="2024" max="2100">
 
     <label>pH</label>
     <input type="number" step="0.1" id="ph">
@@ -179,193 +188,110 @@ th, td {
   </form>
 
   <div id="historial"></div>
-
   <button class="borrar" id="borrarHistorial">🗑️ Cerrar ciclo</button>
 </div>
 
 <script>
 const baldesDiv = document.getElementById("baldes");
-const panel = document.getElementById("panel");
-const tituloBalde = document.getElementById("tituloBalde");
-const mensajeEstado = document.getElementById("mensajeEstado");
-
-const genetica = document.getElementById("genetica");
-const etapa = document.getElementById("etapa");
-const fotoBalde = document.getElementById("fotoBalde");
-
-const registroForm = document.getElementById("registroForm");
-const semana = document.getElementById("semana");
-const ph = document.getElementById("ph");
-const ec = document.getElementById("ec");
-const grow = document.getElementById("grow");
-const micro = document.getElementById("micro");
-const bloom = document.getElementById("bloom");
-const nota = document.getElementById("nota");
-const fotoSemana = document.getElementById("fotoSemana");
-const historial = document.getElementById("historial");
-
 let baldeActual = null;
 
-/* ===== BALDES ===== */
-for (let i = 1; i <= 9; i++) {
-  const b = document.createElement("div");
-  b.id = `balde${i}`;
-  b.className = "balde";
-  b.onclick = () => abrirBalde(i);
-  baldesDiv.appendChild(b);
-  actualizarBalde(i);
-}
-
-function evaluarEstado(ph, ec) {
+/* ===== EVALUACIÓN ===== */
+function evaluarEstado(ph, ec, g, m, b) {
   let estado = "ok";
   let mensajes = [];
 
-  if (ph < 5.5 || ph > 6.5) {
-    estado = "mal";
-    mensajes.push("pH fuera de rango crítico.");
-  } else if (ph < 5.8 || ph > 6.2) {
-    estado = "at";
-    mensajes.push("pH no óptimo.");
-  }
+  ph = parseFloat(ph);
+  ec = parseFloat(ec);
 
-  if (ec < 1) mensajes.push("EC baja, agregar nutrientes.");
-  if (ec > 2.5) {
-    estado = "mal";
-    mensajes.push("EC muy alta, diluir solución.");
-  }
+  if (ph >= 5.5 && ph <= 6.5) mensajes.push("pH óptimo.");
+  else if (ph >= 3.5 && ph <= 5.0) estado = "at", mensajes.push("pH bajo.");
+  else if (ph >= 6.7 && ph <= 8.0) estado = "at", mensajes.push("pH alto.");
+  else estado = "mal", mensajes.push("pH crítico.");
 
-  if (!mensajes.length) mensajes.push("Parámetros óptimos.");
+  if (ec < 0.8) estado = "mal", mensajes.push("EC muy baja.");
+  else if (ec < 1.2 && estado === "ok") estado = "at", mensajes.push("EC baja.");
+  else if (ec > 2.5) estado = "mal", mensajes.push("EC alta.");
+
+  const total = (+g||0)+(+m||0)+(+b||0);
+  if (total === 0) estado = "mal", mensajes.push("Sin nutrientes.");
+  if (total > 6) estado = "mal", mensajes.push("Sobrefertilización.");
 
   return { estado, mensajes };
 }
 
-function actualizarBalde(n) {
-  const g = localStorage.getItem(`balde${n}_genetica`) || "Sin genética";
-  const e = localStorage.getItem(`balde${n}_estado`) || "ok";
-  const foto = localStorage.getItem(`balde${n}_foto`);
-
-  const b = document.getElementById(`balde${n}`);
-  b.className = `balde estado-${e}`;
-  b.innerHTML = `<span>🪣 Balde ${n}<br><small>${g}</small></span>`;
-  b.style.backgroundImage = foto ? `url(${foto})` : "none";
+/* ===== BALDES ===== */
+for (let i=1;i<=9;i++){
+  const b=document.createElement("div");
+  b.id=`balde${i}`;
+  b.className="balde";
+  b.onclick=()=>abrirBalde(i);
+  baldesDiv.appendChild(b);
+  actualizarBalde(i);
 }
 
-function abrirBalde(n) {
-  baldeActual = n;
+function actualizarBalde(n){
+  const g=localStorage.getItem(`balde${n}_genetica`)||"Sin genética";
+  const e=localStorage.getItem(`balde${n}_estado`)||"ok";
+  const f=localStorage.getItem(`balde${n}_foto`);
+  const b=document.getElementById(`balde${n}`);
+  b.className=`balde estado-${e}`;
+  b.innerHTML=`<span>🪣 Balde ${n}<br><small>${g}</small></span>`;
+  b.style.backgroundImage=f?`url(${f})`:"none";
+}
+
+function abrirBalde(n){
+  baldeActual=n;
   panel.classList.remove("oculto");
-
-  genetica.value = localStorage.getItem(`balde${n}_genetica`) || "";
-  etapa.value = localStorage.getItem(`balde${n}_etapa`) || "";
-
-  tituloBalde.innerText = `Balde ${n}`;
+  genetica.value=localStorage.getItem(`balde${n}_genetica`)||"";
+  etapa.value=localStorage.getItem(`balde${n}_etapa`)||"";
+  tituloBalde.innerText=`Balde ${n}`;
   cargarHistorial();
 }
 
-genetica.onchange = () => {
-  localStorage.setItem(`balde${baldeActual}_genetica`, genetica.value);
-  actualizarBalde(baldeActual);
+genetica.onchange=()=>{localStorage.setItem(`balde${baldeActual}_genetica`,genetica.value);actualizarBalde(baldeActual);}
+etapa.onchange=()=>localStorage.setItem(`balde${baldeActual}_etapa`,etapa.value);
+
+fotoBalde.onchange=e=>{
+  const r=new FileReader();
+  r.onload=()=>{localStorage.setItem(`balde${baldeActual}_foto`,r.result);actualizarBalde(baldeActual);}
+  r.readAsDataURL(e.target.files[0]);
 };
 
-etapa.onchange = () => {
-  localStorage.setItem(`balde${baldeActual}_etapa`, etapa.value);
-};
-
-fotoBalde.onchange = e => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    localStorage.setItem(`balde${baldeActual}_foto`, reader.result);
-    actualizarBalde(baldeActual);
-  };
-  reader.readAsDataURL(e.target.files[0]);
-};
-
-registroForm.onsubmit = e => {
+registroForm.onsubmit=e=>{
   e.preventDefault();
-
-  const evaluacion = evaluarEstado(ph.value, ec.value);
-
-  const data = {
-    semana: semana.value,
-    ph: ph.value,
-    ec: ec.value,
-    grow: grow.value,
-    micro: micro.value,
-    bloom: bloom.value,
-    nota: nota.value,
-    estado: evaluacion.estado,
-    mensajes: evaluacion.mensajes
+  const r=new FileReader();
+  r.onload=()=>{
+    const etiqueta=`Semana ${semana.value} · ${mes.value} ${anio.value}`;
+    const ev=evaluarEstado(ph.value,ec.value,grow.value,micro.value,bloom.value);
+    const data={semana:etiqueta,ph:ph.value,ec:ec.value,grow:grow.value,micro:micro.value,bloom:bloom.value,nota:nota.value,foto:r.result,estado:ev.estado,mensajes:ev.mensajes};
+    localStorage.setItem(`balde${baldeActual}_${anio.value}_${mes.value}_${semana.value}`,JSON.stringify(data));
+    localStorage.setItem(`balde${baldeActual}_estado`,ev.estado);
+    registroForm.reset();actualizarBalde(baldeActual);cargarHistorial();
   };
-
-  localStorage.setItem(`balde${baldeActual}_${semana.value}`, JSON.stringify(data));
-  localStorage.setItem(`balde${baldeActual}_estado`, evaluacion.estado);
-
-  registroForm.reset();
-  cargarHistorial();
-  actualizarBalde(baldeActual);
+  fotoSemana.files[0]?r.readAsDataURL(fotoSemana.files[0]):r.onload();
 };
 
-function cargarHistorial() {
-  const keys = Object.keys(localStorage)
-    .filter(k => k.startsWith(`balde${baldeActual}_`) && /\d{4}-W\d{2}/.test(k))
-    .sort();
-
-  let html = `
-  <table>
-    <tr>
-      <th>Semana</th>
-      <th>pH</th>
-      <th>EC</th>
-      <th>Grow</th>
-      <th>Micro</th>
-      <th>Bloom</th>
-      <th>Nota</th>
-      <th>Estado</th>
-    </tr>`;
-
-  let ultimo = null;
-
-  keys.forEach(k => {
-    const d = JSON.parse(localStorage[k]);
-    ultimo = d;
-    html += `
-    <tr>
-      <td>${d.semana}</td>
-      <td>${d.ph}</td>
-      <td>${d.ec}</td>
-      <td>${d.grow}</td>
-      <td>${d.micro}</td>
-      <td>${d.bloom}</td>
-      <td>${d.nota || ""}</td>
-      <td>${d.estado}</td>
-    </tr>`;
+function cargarHistorial(){
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith(`balde${baldeActual}_`)&&k.split("_").length===5).sort();
+  let html=`<table><tr><th>Semana</th><th>pH</th><th>EC</th><th>Grow/Micro/Bloom</th><th>Foto</th><th>Estado</th></tr>`;
+  let ultimo=null;
+  keys.forEach(k=>{
+    const d=JSON.parse(localStorage[k]);ultimo=d;
+    html+=`<tr><td>${d.semana}</td><td>${d.ph}</td><td>${d.ec}</td><td>${d.grow}/${d.micro}/${d.bloom}</td><td>${d.foto?`<img class="thumb" src="${d.foto}">`:""}</td><td>${d.estado}</td></tr>`;
   });
-
-  historial.innerHTML = html + "</table>";
-
-  if (ultimo) {
-    mensajeEstado.innerHTML =
-      `<strong>Estado actual:</strong>
-       <ul>${ultimo.mensajes.map(m => `<li>${m}</li>`).join("")}</ul>`;
-  }
+  historial.innerHTML=html+"</table>";
+  if(ultimo)mensajeEstado.innerHTML=`<strong>Estado actual:</strong><ul>${ultimo.mensajes.map(m=>`<li>${m}</li>`).join("")}</ul>`;
 }
 
-document.getElementById("borrarHistorial").onclick = () => {
-  if (!confirm("¿Cerrar ciclo completo?")) return;
-  Object.keys(localStorage)
-    .filter(k => k.startsWith(`balde${baldeActual}_`))
-    .forEach(k => localStorage.removeItem(k));
-
-  historial.innerHTML = "";
-  mensajeEstado.innerHTML = "";
-  actualizarBalde(baldeActual);
+borrarHistorial.onclick=()=>{
+  if(!confirm("¿Cerrar ciclo completo?"))return;
+  Object.keys(localStorage).filter(k=>k.startsWith(`balde${baldeActual}_`)).forEach(k=>localStorage.removeItem(k));
+  historial.innerHTML="";mensajeEstado.innerHTML="";actualizarBalde(baldeActual);
 };
 </script>
 
-<!-- REGISTRO SERVICE WORKER -->
 <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js");
-}
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js");}
 </script>
 
 </body>
