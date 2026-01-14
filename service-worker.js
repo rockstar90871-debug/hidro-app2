@@ -4,10 +4,10 @@ const STATIC_CACHE = `hidroponia-static-${APP_VERSION}`;
 const DYNAMIC_CACHE = `hidroponia-dynamic-${APP_VERSION}`;
 const IMAGE_CACHE = `hidroponia-images-${APP_VERSION}`;
 
-// App shell (no debería cambiar seguido)
 const STATIC_FILES = [
   "./",
   "./index.html",
+  "./offline.html",
   "./manifest.json",
   "./styles.css",
   "./app.js",
@@ -18,7 +18,11 @@ const STATIC_FILES = [
 // ---------- INSTALL ----------
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => cache.addAll(STATIC_FILES))
+    caches.open(STATIC_CACHE).then(cache =>
+      Promise.allSettled(
+        STATIC_FILES.map(file => cache.add(file))
+      )
+    )
   );
   self.skipWaiting();
 });
@@ -46,13 +50,13 @@ self.addEventListener("fetch", event => {
 
   if (request.method !== "GET") return;
 
-  // HTML → network first (para updates)
-  if (request.destination === "document") {
+  // Navegación / HTML
+  if (request.mode === "navigate") {
     event.respondWith(networkFirst(request, STATIC_CACHE));
     return;
   }
 
-  // CSS / JS → cache first
+  // CSS / JS
   if (
     request.destination === "style" ||
     request.destination === "script"
@@ -61,13 +65,13 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // Imágenes (fondos, plantas, baldes)
+  // Imágenes
   if (request.destination === "image") {
     event.respondWith(cacheFirst(request, IMAGE_CACHE));
     return;
   }
 
-  // APIs / datos (Firebase futuro)
+  // APIs / datos
   event.respondWith(networkFirst(request, DYNAMIC_CACHE));
 });
 
@@ -84,7 +88,7 @@ async function cacheFirst(request, cacheName) {
     cache.put(request, response.clone());
     return response;
   } catch {
-    return null;
+    return new Response("", { status: 503, statusText: "Offline" });
   }
 }
 
@@ -97,7 +101,6 @@ async function networkFirst(request, cacheName) {
     return response;
   } catch {
     const cached = await cache.match(request);
-    return cached || caches.match("./index.html");
+    return cached || cache.match("./offline.html");
   }
 }
-
