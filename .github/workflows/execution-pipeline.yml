@@ -22,14 +22,20 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Install dependencies
+      run: |
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
     - name: Run Executor
+      env:
+        GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
+        GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
       run: |
         # Ensure the executor script is executable
-        chmod +x automation/executor.py
+        chmod +x automation/scripts/executor.py
         
-        # Run the executor on the current directory (or specific target)
-        # Using '.' to scan the entire repo or specify a subdirectory like './scripts'
-        python automation/executor.py .
+        # Run the executor on the test_scripts directory (or desired target)
+        python automation/scripts/executor.py test_scripts
       
     - name: Commit execution state
       if: always()
