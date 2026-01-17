@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>SmartGrow - Hidro Indoor</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1b4332">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { font-family: Arial, sans-serif; background: #0f1f17; color: #eaffea; text-align: center; padding: 20px; margin: 0; }
+  h1 { margin-top: 10px; }
+  .baldes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; max-width: 480px; margin: auto; }
+  .balde { padding: 15px; border-radius: 12px; cursor: pointer; color: white; background-size: cover; background-position: center; position: relative; min-height: 90px; }
+  .balde::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.45); border-radius: 12px; }
+  .balde span { position: relative; z-index: 2; font-size: 14px; }
+  .estado-ok { background-color: #2d6a4f; }
+  .estado-at { background-color: #b08900; }
+  .estado-mal { background-color: #9b2226; }
+  .panel { background: #1b4332; padding: 20px; max-width: 650px; margin: 20px auto; border-radius: 15px; }
+  .oculto { display: none; }
+  label { display: block; margin-top: 10px; text-align: left; font-size: 13px; }
+  input, select, textarea { width: 100%; padding: 7px; border-radius: 6px; border: none; margin-top: 3px; box-sizing: border-box; }
+  textarea { resize: vertical; }
+  button { margin-top: 12px; padding: 10px; width: 100%; background: #52b788; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; color: #000; font-weight: bold; }
+  button.borrar { background: #9b2226; color: white; }
+  .table-container { width: 100%; overflow-x: auto; margin-top: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 400px; }
+  th, td { border: 1px solid #40916c; padding: 4px; text-align: center; }
+  img.thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+  #mensajeEstado { margin-top: 12px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); text-align: left; }
+</style>
+</head>
+<body>
+
+<h1>🌱 Sala de Cultivo Inteligente</h1>
+<div class="baldes" id="baldes"></div>
+
+<div id="panel" class="panel oculto">
+  <h2 id="tituloBalde"></h2>
+  <div id="mensajeEstado"></div>
+
+  <label>Genética</label>
+  <input id="genetica">
+
+  <label>Etapa</label>
+  <select id="etapa">
+    <option>Germinación</option>
+    <option>Vegetativo</option>
+    <option>Floración</option>
+    <option>Lavado</option>
+  </select>
+
+  <label>📸 Foto Principal de la Planta</label>
+  <input type="file" id="fotoBalde" accept="image/*">
+
+  <hr style="margin: 20px 0; border: 0; border-top: 1px solid #40916c;">
+
+  <form id="registroForm">
+    <label>Semana</label>
+    <input type="number" id="semana" min="1" max="53" required>
+
+    <label>Mes</label>
+    <select id="mes">
+      <option>Enero</option><option>Febrero</option><option>Marzo</option>
+      <option>Abril</option><option>Mayo</option><option>Junio</option>
+      <option>Julio</option><option>Agosto</option><option>Septiembre</option>
+      <option>Octubre</option><option>Noviembre</option><option>Diciembre</option>
+    </select>
+
+    <label>Año</label>
+    <input type="number" id="anio" value="2026" min="2024" max="2100">
+
+    <label>pH</label>
+    <input type="number" step="0.1" id="ph">
+
+    <label>EC</label>
+    <input type="number" step="0.1" id="ec">
+
+    <div style="display: flex; gap: 5px;">
+      <div style="flex:1"><label>Grow</label><input type="number" step="0.1" id="grow"></div>
+      <div style="flex:1"><label>Micro</label><input type="number" step="0.1" id="micro"></div>
+      <div style="flex:1"><label>Bloom</label><input type="number" step="0.1" id="bloom"></div>
+    </div>
+
+    <label>📝 Nota semanal</label>
+    <textarea id="nota"></textarea>
+
+    <label>📷 Foto del registro</label>
+    <input type="file" id="fotoSemana" accept="image/*">
+
+    <button type="submit">💾 Guardar Registro Semanal</button>
+  </form>
+
+  <div class="table-container">
+    <div id="historial"></div>
+  </div>
+  <button class="borrar" id="borrarHistorial">🗑️ Cerrar ciclo completo</button>
+</div>
+
+<script>
+/* Elementos UI */
+const baldesDiv = document.getElementById("baldes"),
+      panel = document.getElementById("panel"),
+      genetica = document.getElementById("genetica"),
+      etapa = document.getElementById("etapa"),
+      tituloBalde = document.getElementById("tituloBalde"),
+      fotoBalde = document.getElementById("fotoBalde"),
+      registroForm = document.getElementById("registroForm"),
+      semana = document.getElementById("semana"),
+      mes = document.getElementById("mes"),
+      anio = document.getElementById("anio"),
+      ph = document.getElementById("ph"),
+      ec = document.getElementById("ec"),
+      grow = document.getElementById("grow"),
+      micro = document.getElementById("micro"),
+      bloom = document.getElementById("bloom"),
+      nota = document.getElementById("nota"),
+      fotoSemana = document.getElementById("fotoSemana"),
+      historial = document.getElementById("historial"),
+      mensajeEstado = document.getElementById("mensajeEstado"),
+      borrarHistorial = document.getElementById("borrarHistorial");
+
+let baldeActual = null;
+
+function evaluarEstado(phVal, ecVal, g, m, b) {
+  let estado = "ok", mensajes = [];
+  phVal = parseFloat(phVal); ecVal = parseFloat(ecVal);
+  if (phVal >= 5.5 && phVal <= 6.5) mensajes.push("pH óptimo.");
+  else if (phVal >= 3.5 && phVal <= 5.0) { estado = "at"; mensajes.push("pH bajo."); }
+  else if (phVal >= 6.7 && phVal <= 8.0) { estado = "at"; mensajes.push("pH alto."); }
+  else { estado = "mal"; mensajes.push("pH crítico."); }
+
+  if (ecVal < 0.8) { estado = "mal"; mensajes.push("EC muy baja."); }
+  else if (ecVal < 1.2 && estado === "ok") { estado = "at"; mensajes.push("EC baja."); }
+  else if (ecVal > 2.5) { estado = "mal"; mensajes.push("EC alta."); }
+
+  const total = (+g||0)+(+m||0)+(+b||0);
+  if (total === 0) { estado = "mal"; mensajes.push("Sin nutrientes."); }
+  return { estado, mensajes };
+}
+
+for (let i=1; i<=9; i++){
+  const b = document.createElement("div");
+  b.id = `balde${i}`;
+  b.className = "balde";
+  b.onclick = () => abrirBalde(i);
+  baldesDiv.appendChild(b);
+  actualizarBalde(i);
+}
+
+function actualizarBalde(n){
+  const g = localStorage.getItem(`balde${n}_genetica`) || "Sin genética";
+  const e = localStorage.getItem(`balde${n}_estado`) || "ok";
+  const f = localStorage.getItem(`balde${n}_foto`);
+  const b = document.getElementById(`balde${n}`);
+  b.className = `balde estado-${e}`;
+  b.innerHTML = `<span>🪣 Balde ${n}<br><small>${g}</small></span>`;
+  b.style.backgroundImage = f ? `url(${f})` : "none";
+}
+
+function abrirBalde(n){
+  baldeActual = n;
+  panel.classList.remove("oculto");
+  genetica.value = localStorage.getItem(`balde${n}_genetica`) || "";
+  etapa.value = localStorage.getItem(`balde${n}_etapa`) || "";
+  tituloBalde.innerText = `Balde ${n}`;
+  cargarHistorial();
+  window.scrollTo({ top: panel.offsetTop, behavior: 'smooth' });
+}
+
+genetica.onchange = () => { localStorage.setItem(`balde${baldeActual}_genetica`, genetica.value); actualizarBalde(baldeActual); };
+etapa.onchange = () => localStorage.setItem(`balde${baldeActual}_etapa`, etapa.value);
+
+fotoBalde.onchange = e => {
+  const r = new FileReader();
+  r.onload = () => { localStorage.setItem(`balde${baldeActual}_foto`, r.result); actualizarBalde(baldeActual); };
+  if(e.target.files[0]) r.readAsDataURL(e.target.files[0]);
+};
+
+registroForm.onsubmit = e => {
+  e.preventDefault();
+  const guardarRegistro = (fotoData = null) => {
+    const etiqueta = `Semana ${semana.value} · ${mes.value} ${anio.value}`;
+    const ev = evaluarEstado(ph.value, ec.value, grow.value, micro.value, bloom.value);
+    const data = { semana: etiqueta, ph: ph.value, ec: ec.value, grow: grow.value, micro: micro.value, bloom: bloom.value, nota: nota.value, foto: fotoData, estado: ev.estado, mensajes: ev.mensajes };
+    localStorage.setItem(`balde${baldeActual}_reg_${Date.now()}`, JSON.stringify(data));
+    localStorage.setItem(`balde${baldeActual}_estado`, ev.estado);
+    registroForm.reset(); actualizarBalde(baldeActual); cargarHistorial();
+  };
+
+  if (fotoSemana.files[0]) {
+    const r = new FileReader();
+    r.onload = () => guardarRegistro(r.result);
+    r.readAsDataURL(fotoSemana.files[0]);
+  } else {
+    guardarRegistro();
+  }
+};
+
+function cargarHistorial(){
+  const keys = Object.keys(localStorage).filter(k => k.startsWith(`balde${baldeActual}_reg_`)).sort();
+  let html = `<table><tr><th>Semana</th><th>pH</th><th>EC</th><th>G/M/B</th><th>Foto</th><th>Estado</th></tr>`;
+  let ultimo = null;
+  keys.forEach(k => {
+    const d = JSON.parse(localStorage[k]); ultimo = d;
+    html += `<tr><td>${d.semana}</td><td>${d.ph}</td><td>${d.ec}</td><td>${d.grow}/${d.micro}/${d.bloom}</td><td>${d.foto ? `<img class="thumb" src="${d.foto}">` : "-"}</td><td>${d.estado}</td></tr>`;
+  });
+  historial.innerHTML = keys.length ? html + "</table>" : "<p>No hay registros en este ciclo.</p>";
+  mensajeEstado.innerHTML = ultimo ? `<strong>Estado:</strong><ul>${ultimo.mensajes.map(m=>`<li>${m}</li>`).join("")}</ul>` : "";
+}
+
+borrarHistorial.onclick = () => {
+  if(!confirm("¿Cerrar ciclo? Se borrarán todos los registros de este balde.")) return;
+  Object.keys(localStorage).filter(k => k.startsWith(`balde${baldeActual}_`)).forEach(k => localStorage.removeItem(k));
+  panel.classList.add("oculto"); actualizarBalde(baldeActual);
+};
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+</body>
+</html>
