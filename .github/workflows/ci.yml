@@ -1,0 +1,30 @@
+name: Secuencia de Ejecución Automatizada
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  run-scripts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Ejecutar scripts secuencialmente
+        run: |
+          # Asegúrate de que la ruta al script sea correcta. 
+          # Aquí asumimos que executor.py está en 'automation/' y los scripts a correr en 'scripts/'
+          # Ajusta 'scripts/' a la carpeta real que quieres escanear dentro de tu repo.
+          python automation/executor.py scripts/
+        env:
+          # Puedes pasar variables de entorno si tus scripts las necesitan
+          CI_ENV: true

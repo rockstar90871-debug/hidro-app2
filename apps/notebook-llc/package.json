@@ -1,0 +1,9 @@
+{
+    "name": "notebook-llc",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "echo 'Run docs dev server'",
+        "build": "echo 'Build docs'"
+    }
+}

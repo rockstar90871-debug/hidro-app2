@@ -1,0 +1,6 @@
+{
+    "executed": [
+        "folder_a\\script_a.py",
+        "folder_b\\script_b.py"
+    ]
+}

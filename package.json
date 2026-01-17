@@ -1,0 +1,22 @@
+{
+  "name": "nexus-project",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "note:gen": "ts-node tools/scripts/generate-eng-note.ts",
+    "analyze:logs": "ts-node tools/scripts/vercel-monitor.ts"
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "prettier": "latest",
+    "ts-node": "latest",
+    "typescript": "latest"
+  },
+  "packageManager": "pnpm@8.0.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

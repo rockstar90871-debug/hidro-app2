@@ -1,0 +1,45 @@
+name: Sequential Execution Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  execute-scripts:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Run Executor
+      run: |
+        # Ensure the executor script is executable
+        chmod +x automation/executor.py
+        
+        # Run the executor on the current directory (or specific target)
+        # Using '.' to scan the entire repo or specify a subdirectory like './scripts'
+        python automation/executor.py .
+      
+    - name: Commit execution state
+      if: always()
+      run: |
+        git config --global user.name "Antigravity Bot"
+        git config --global user.email "bot@antigravity.execution"
+        
+        # Check if state file exists and has changed
+        if [ -f "execution_state.json" ]; then
+          git add execution_state.json
+          git commit -m "Update execution state [skip ci]" || echo "No changes to commit"
+          git push
+        fi
