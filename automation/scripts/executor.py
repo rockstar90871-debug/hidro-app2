@@ -161,7 +161,7 @@ def save_results(data, output_dir, base_filename):
             logging.error(f"Error guardando CSV {base_filename}: {e}")
 
     # Subir a Google Drive
-    folder_id = os.environ.get("GDRIVE_FOLDER_ID")
+    folder_id = os.environ.get("GDRIVE_FOLDER_ID", "1gKR4lhHBEH6iaXesiAgxbwuoC8i-wkSr")
     if folder_id:
         for fpath in generated_files:
             upload_to_drive(fpath, folder_id)
